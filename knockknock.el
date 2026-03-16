@@ -721,6 +721,14 @@ Returns the icon string or nil if not found."
             (_ (nerd-icons-codicon (concat "nf-cod-" icon-name))))
         (error nil)))))
 
+(defun knockknock--image-mime-type (file-path)
+  "Return MIME type string for image at FILE-PATH.
+Supports common image formats: SVG, PNG, JPEG, GIF, BMP, WEBP."
+  (when-let ((type (image-supported-file-p file-path)))
+    (if (eq type 'svg)
+        "image/svg+xml"
+      (format "image/%s" type))))
+
 (defun knockknock--load-svg-file (file-path)
   "Load SVG content from FILE-PATH.
 Returns the SVG data as a string, or nil if the file cannot be read.
@@ -756,18 +764,21 @@ If cache is full, clear oldest entries."
 (defun knockknock--format-buffer-svg (title message icon &optional icon-file progress)
   "Format the notification buffer using SVG for pixel-perfect layout.
 ICON is on left, TITLE and MESSAGE on right with exact positioning.
-If ICON-FILE is provided, embed the custom SVG file instead of using nerd-icons.
+If ICON-FILE is provided, embed the custom image file instead of using nerd-icons.
+Supports SVG, PNG, JPEG, and other image formats via `svg-embed'.
 If PROGRESS is provided, render a progress bar at the bottom.
 PROGRESS is a plist with :percent (0-100)."
   (require 'svg)
   (require 'dom)
   ;; Set reasonable max-image-size for notifications
   (let ((max-image-size 8000))
-    (let* ((custom-svg-data (knockknock--load-svg-file icon-file))
-           (icon-str (and (not custom-svg-data)
+    (let* ((icon-file-path (when-let* ((icon-file)
+                                      ((file-readable-p icon-file)))
+                            (expand-file-name icon-file)))
+           (icon-str (and (not icon-file-path)
                           icon
                           (knockknock--xml-escape (knockknock--get-icon icon))))
-           (has-icon (or custom-svg-data icon-str))
+           (has-icon (or icon-file-path icon-str))
            (title (knockknock--xml-escape title))
            (message (knockknock--xml-escape message))
          (icon-size knockknock-svg-icon-size)
@@ -820,19 +831,16 @@ PROGRESS is a plist with :percent (0-100)."
     ;; Create SVG
     (let ((svg (svg-create canvas-width total-height)))
 
-      ;; Add icon - either custom SVG file or nerd-icons font
+      ;; Add icon - either custom image file or nerd-icons font
       (cond
-       ;; Custom SVG file
-       (custom-svg-data
-        (let ((data-uri (concat "data:image/svg+xml;base64,"
-                                (base64-encode-string custom-svg-data t))))
-          (svg--append svg
-                       (dom-node 'image
-                                 `((x . ,icon-x)
-                                   (y . ,margin)
-                                   (width . ,icon-size)
-                                   (height . ,icon-size)
-                                   (xlink:href . ,data-uri))))))
+       ;; Custom image file (SVG, PNG, JPEG, etc.)
+       (icon-file-path
+        (svg-embed svg icon-file-path
+                   (or (knockknock--image-mime-type icon-file-path)
+                       "image/png")
+                   nil
+                   :x icon-x :y margin
+                   :width icon-size :height icon-size))
        ;; Nerd-icons font icon
        (icon-str
         (let* ((nerd-font "Symbols Nerd Font Mono")
