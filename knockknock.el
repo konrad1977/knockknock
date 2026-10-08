@@ -737,9 +737,21 @@ FILE-PATH is expanded to handle ~ and other path shortcuts."
            (message "knockknock: Failed to load SVG file %s: %s" expanded-path err))
          nil)))))
 
+(defun knockknock--svg-foreground (face)
+  "Return FACE's foreground, falling back to the default face, then white."
+  (or (face-foreground face nil t)
+      (face-foreground 'default nil t)
+      "#ffffff"))
+
 (defun knockknock--cache-key (title message icon &optional icon-file)
-  "Generate cache key from TITLE, MESSAGE, ICON, and optional ICON-FILE."
-  (list (or title "") (or message "") (or icon "") (or icon-file "")))
+  "Generate cache key from TITLE, MESSAGE, ICON and optional ICON-FILE.
+Also include the current SVG foreground colors."
+  (list (or title "") (or message "") (or icon "") (or icon-file "")
+        ;; Cached images must not retain colors from another theme or frame.
+        (mapcar #'knockknock--svg-foreground
+                '(knockknock-title-face
+                  knockknock-message-face
+                  knockknock-icon-face))))
 
 (defun knockknock--get-cached-svg (title message icon &optional icon-file)
   "Get cached SVG image for TITLE, MESSAGE, ICON, and ICON-FILE, or nil if not cached."
@@ -812,10 +824,9 @@ PROGRESS is a plist with :percent (0-100)."
          (total-height (+ icon-size (* 2 margin) bottom-padding
                           message-block-height progress-height))
          ;; Colors from faces - use theme defaults
-         (default-fg (or (face-foreground 'default nil t) "#ffffff"))
-         (title-color (or (face-foreground 'knockknock-title-face nil t) default-fg))
-         (message-color (or (face-foreground 'knockknock-message-face nil t) default-fg))
-         (icon-color (or (face-foreground 'knockknock-icon-face nil t) default-fg)))
+         (title-color (knockknock--svg-foreground 'knockknock-title-face))
+         (message-color (knockknock--svg-foreground 'knockknock-message-face))
+         (icon-color (knockknock--svg-foreground 'knockknock-icon-face)))
 
     ;; Create SVG
     (let ((svg (svg-create canvas-width total-height)))
