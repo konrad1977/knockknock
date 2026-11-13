@@ -145,6 +145,13 @@ See `posframe-show' for available handlers."
   :type 'function
   :group 'knockknock)
 
+(defcustom knockknock-refposhandler nil
+  "Reference position handler function for the alert frame.
+Generally this should be nil; EXWM users may want something different.
+See `posframe-show' for more information."
+  :type 'function
+  :group 'knockknock)
+
 (defcustom knockknock-icon-size 2.0
   "Size multiplier for the icon."
   :type 'number
@@ -1044,6 +1051,7 @@ This should only be called when the frame is ready for rendering."
                 (posframe-show
                  knockknock--buffer
                  :poshandler knockknock-poshandler
+		 :refposhandler knockknock-refposhandler
                  :internal-border-width knockknock-border-width
                  :internal-border-color knockknock-border-color
                  :left-fringe knockknock-left-fringe
@@ -1154,6 +1162,7 @@ This should only be called when the frame is ready for rendering."
         (posframe-show
          knockknock--buffer
          :poshandler knockknock-poshandler
+	 :refposhandler knockknock-refposhandler
          :internal-border-width knockknock-border-width
          :internal-border-color knockknock-border-color
          :left-fringe knockknock-left-fringe
